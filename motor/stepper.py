@@ -1,9 +1,9 @@
 # motor/stepper.py
 import RPi.GPIO as GPIO
-import time
+from time import sleep
 
 class StepperMotor:
-    def __init__(self, pul_pin=23, dir_pin=24, ena_pin=25, step_delay=0.001):
+    def __init__(self, pul_pin=23, dir_pin=24, ena_pin=25, step_delay=0.00001):
         self.pul_pin = pul_pin
         self.dir_pin = dir_pin
         self.ena_pin = ena_pin
@@ -22,9 +22,9 @@ class StepperMotor:
 
         for _ in range(steps):
             GPIO.output(self.pul_pin, GPIO.HIGH)
-            time.sleep(self.step_delay)
+            sleep(self.step_delay)
             GPIO.output(self.pul_pin, GPIO.LOW)
-            time.sleep(self.step_delay)
+            sleep(self.step_delay)
 
     def cleanup(self):
         GPIO.cleanup()
