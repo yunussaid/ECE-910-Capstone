@@ -212,4 +212,3 @@ __marimo__/
 batch_images/
 test_images/
 misc/resolution_vs_fps/
-batch_analyzer.py
