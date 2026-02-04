@@ -8,20 +8,22 @@ from datetime import datetime
 # ██████████████ DEFINE CAMERA CLASS ██████████████
 
 class Camera:
-    def __init__(self, idx=0, width=3264, height=2448):
+    def __init__(self, idx=0, width=3264, height=2448, w_crop_factor=1):
         self.idx = idx
         self.width = width
         self.height = height
+        self.w_crop_factor = w_crop_factor
         print(f"camera.py:\tIntializing camera_{self.idx} ...")
 
         # Windows: cv2.CAP_MSMF is slow during initialization but minimal lag during runtime.
         # Windows: cv2.CAP_DSHOW is very quick to initalize but laggy during runtime.
         # Linux: cv2.CAP_V4L2 is the preferred backend
         # Auto: cv2.CAP_ANY lets OpenCV choose the best backend
-        self.cap = cv2.VideoCapture(self.idx, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(self.idx, cv2.CAP_V4L2)
         if not self.cap.isOpened():
             raise RuntimeError(f"camera.py:\t__init__() could not open camera_{self.idx}")
 
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG')) # Compression that supports high res
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
 
@@ -58,15 +60,25 @@ class Camera:
         for i in range(5): cv2.waitKey(1) # Increment event loop to ensure window closes
         print(f"camera.py:\tAutofocusing camera_{self.idx} complete. Focus locked at {actual_focus} (AF={actual_auto_focus})")
 
-    def capture(self, img_dir, img_name=None):
+    def capture(self, img_dir, img_name=None, w_crop_factor=1):
+        for _ in range(10): # Flush 10 frames to get the latest sensor data
+            self.cap.grab()
+        
         ok, frame = self.cap.read()
         if not ok or frame is None:
             raise RuntimeError("camera.py:\tcapture() failed to capture frame")
+
+        if 0.0 < w_crop_factor and w_crop_factor < 1:
+            _, w = frame.shape[:2]
+            new_w = int(w * (w_crop_factor / 1.0))
+            w_start = (w - new_w) // 2
+            w_end = w_start + new_w
+            frame = frame[:, w_start:w_end]
         
         os.makedirs(img_dir, exist_ok=True)
         
         if img_name is None:
-            ts = datetime.now().strftime("%Y-%m-%d-%H;%M;%S")
+            ts = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
             img_name = f"camera_{self.idx}_{ts}.jpg"
         
         img_path = os.path.join(img_dir, img_name)
@@ -140,7 +152,7 @@ class Camera:
         print(f"camera.py:\tcamera_{self.idx} exposure is {actual_exposure}")
         
         # 5. Live Feed to See
-        self.live('test_images\live()')
+        self.live('test_images/live()')
 
     def scan_available_cameras(self, max_index=10):
         print("camera.py:\tScanning for available cameras...")
@@ -179,9 +191,9 @@ class Camera:
 # ██████████████ TEST CAMERA CLASS ██████████████
 
 def main():
-    camera = Camera(1, 3264, 2448)              # idx=1 for Windows
-    camera.capture('test_images\capture()')
-    camera.live('test_images\live()')
+    camera = Camera(0, 3264, 2448)              # idx=0 for Pi, idx=1 for Windows
+    camera.capture('test_images/capture()', w_crop_factor=0.3)
+    camera.live('test_images/live()')
 
 if __name__=="__main__":
     main()

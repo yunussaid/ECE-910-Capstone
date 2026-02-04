@@ -1,4 +1,4 @@
-# import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 from time import sleep
 
 
@@ -8,32 +8,29 @@ from time import sleep
 LEFT = 0
 RIGHT = 1
 DIST_PER_REV = 49.87278  # 1 rev = 49.87278 mm
-STEPS_PER_REV = 3200     
+STEPS_PER_REV = 6400     
 
 class Motor:
-    def __init__(self, steps_per_rev = 3200, step_delay=0.0002, pul_pin=23, dir_pin=24, ena_pin=25):
+    def __init__(self, steps_per_rev = 6400, step_delay=0.0002, pul_pin=23, dir_pin=24, ena_pin=25):
         self.steps_per_rev = steps_per_rev # (manually configured on driver)
         self.step_delay = step_delay
         self.pul_pin, self.dir_pin, self.ena_pin = pul_pin, dir_pin, ena_pin
 
-        # GPIO.setmode(GPIO.BCM)
-        # GPIO.setup(self.pul_pin, GPIO.OUT)
-        # GPIO.setup(self.dir_pin, GPIO.OUT)
-        # GPIO.setup(self.ena_pin, GPIO.OUT)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.pul_pin, GPIO.OUT)
+        GPIO.setup(self.dir_pin, GPIO.OUT)
+        GPIO.setup(self.ena_pin, GPIO.OUT)
 
-        self.enable()
+        self.disable()
 
     def enable(self):
-        # GPIO.output(self.ena_pin, GPIO.LOW)
-        return
+        GPIO.output(self.ena_pin, GPIO.LOW)
 
     def disable(self):
-        # GPIO.output(self.ena_pin, GPIO.HIGH)
-        return
+        GPIO.output(self.ena_pin, GPIO.HIGH)
 
     def step(self, steps, direction):
-        # GPIO.output(self.dir_pin, GPIO.HIGH if direction == RIGHT else GPIO.LOW)
-        return
+        GPIO.output(self.dir_pin, GPIO.LOW if direction == RIGHT else GPIO.HIGH)
 
         for _ in range(steps):
             GPIO.output(self.pul_pin, GPIO.HIGH)
@@ -57,7 +54,7 @@ class Motor:
 
     def cleanup(self):
         self.disable()
-        # GPIO.cleanup()
+        GPIO.cleanup()
 
 
 
@@ -65,16 +62,30 @@ class Motor:
 # ██████████████ TEST MOTOR CLASS ██████████████
 
 def main():
+    cassette_count = 2
     cassette_width_mm = 36
-    motor = Motor(step_delay=0.0002)
+    
+    motor = Motor(step_delay=0.0002) # Initializes motor and sets GPIO pins to LOW/Safe state
+    
+    # Guard Rail 1: Power On
+    print("\n--- SAFETY CHECK ---")
+    input("1. Switch ON the motor power supply, then press Enter to continue...")
+    
+    motor.enable()
 
-    for _ in range(30):
-        Motor.move_right(cassette_width_mm)
+    for _ in range(cassette_count):
+        motor.move_right(cassette_width_mm)
         sleep(1)
-
-    # sleep(5)
-    Motor.move_left(cassette_width_mm*30)
+    
+    motor.move_left(cassette_width_mm * cassette_count)
+    motor.disable()
+    
+    # Guard Rail 2: Power Off
+    print("\n--- BATCH COMPLETE ---")
+    input("2. Switch OFF the motor power supply, then press Enter to finish cleanup...")
+    
     motor.cleanup()
+    print("\nCleanup complete. Script exiting...")
     
 
 if __name__=="__main__":
